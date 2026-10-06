@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+release/
+
+# Large binaries exceeding GitHub 100MB limit
+# (Auto-downloaded by scripts/ensure-ffmpeg.js if missing)
+resources/bin/ffmpeg.exe
+resources/bin/ffplay.exe
+resources/bin/ffprobe.exe
+
+# Logs and environment
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini

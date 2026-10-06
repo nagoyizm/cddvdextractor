@@ -1,0 +1,42 @@
+appId: "com.audioextractor.app"
+productName: "DVD & CD Audio Extractor"
+copyright: "Copyright © 2026"
+directories:
+  output: "release"
+  buildResources: "resources"
+
+publish:
+  provider: github
+  owner: "nagoyizm"
+  repo: "cddvdextractor"
+  releaseType: "release"
+
+files:
+  - "dist/**/*"
+  - "package.json"
+
+extraResources:
+  - from: "resources/bin"
+    to: "bin"
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: "portable"
+      arch:
+        - "x64"
+    - target: "nsis"
+      arch:
+        - "x64"
+
+portable:
+  artifactName: "${productName}-Portable-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "DVD & CD Audio Extractor"
+  artifactName: "${productName}-Setup-${version}.${ext}"
