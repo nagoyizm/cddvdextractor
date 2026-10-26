@@ -10,6 +10,8 @@ Snapshot al **2026-10-25**. Para arquitectura técnica ver [ARCHITECTURE.md](ARC
 
 **Fix aplicado** en `scanDvdVideo()` ([discScanner.ts:226-279](src/main/discScanner.ts:226)): ahora lee `nr_of_programs` y el Program Map (offset `pgc1+0xE6`) para agrupar las celdas reales de cada programa/canción y sumar sus duraciones; si el disco no define Programas, cae a las celdas individuales como respaldo; solo si ninguna de las dos fuentes da resultado usable, cae al reparto sintético en 12 partes iguales (ahora como último recurso real, no como caso común). Verificado con `npx tsc -p tsconfig.main.json --noEmit` (sin errores). **Pendiente**: no se probó aún contra un DVD físico real (no hay unidad óptica disponible en este entorno) — convendría validar con al menos un disco de concierto real antes de confiar plenamente en el fix.
 
+**Release publicado**: se subió la versión a `1.0.1` en `package.json`/`package-lock.json` (commit `cf74deb`), se pusheó a `origin/main` y se creó/pusheó el tag `v1.0.1`, lo que disparó `.github/workflows/build-and-release.yml` (run [40251649574](https://github.com/nagoyizm/cddvdextractor/actions/runs/40251649574)) para compilar y publicar el instalador NSIS a GitHub Releases. La app instalada localmente (`electron-updater`, versión actual `1.0.0`) debería detectar `1.0.1` como actualización disponible una vez que termine el workflow y quede publicado el release. Verificar en GitHub que el release `v1.0.1` quedó publicado correctamente (artefactos `.exe`/`latest.yml`) antes de asumir que el auto-update funcionará.
+
 ## Dónde está el código
 
 - Rama: `main` (único branch local).
