@@ -15,7 +15,7 @@ El desarrollo de una aplicación local para extracción de audio de discos ópti
 *   **DVD-Video:** Utiliza sistema de archivos **UDF/ISO 9660**. El audio reside multiplexado en contenedores MPEG-2 Program Stream (`.VOB`) junto con video y subtítulos, organizado jerárquicamente en Títulos, Cadenas de Celdas (PGC) y Capítulos dentro de archivos descriptores `.IFO`. En el 95% de los discos comerciales se encuentra protegido por **CSS (Content Scramble System)**, lo que requiere rutinas de desencriptado (`libdvdcss`).
 *   **DVD-Audio (DVD-A):** Mucho más infrecuente. Utiliza directorio `AUDIO_TS/` con archivos `.AOB` y codificación MLP (Meridian Lossless Packing) o LPCM de alta resolución (hasta 24-bit/192kHz). Requiere un demultiplexor especializado.
 
-La solución óptima no es reinventar los decodificadores desde cero en C puro, sino diseñar una **arquitectura híbrida por capas**: un motor de orquestación de alto rendimiento que controle bibliotecas probadas en la industria (`libcdio`, `libdvdread`, `libdvdcss`, `ffmpeg` / `libavcodec`) acoplado a una interfaz gráfica de usuario reactiva, moderna y con soporte de metadatos automáticos (MusicBrainz).
+La solución óptima no es reinventar los decodificadores        desde cero en C puro, sino diseñar una **arquitectura híbrida por capas**: un motor de orquestación de alto rendimiento que controle bibliotecas probadas en la industria (`libcdio`, `libdvdread`, `libdvdcss`, `ffmpeg` / `libavcodec`) acoplado a una interfaz gráfica de usuario reactiva, moderna y con soporte de metadatos automáticos (MusicBrainz).
 
 ---
 
