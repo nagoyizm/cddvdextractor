@@ -1,6 +1,6 @@
 {
   "name": "dvd-audio-extractor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Extractor local y de alta fidelidad de pistas de audio desde CD-DA y DVD a FLAC, WAV, MP3 y AAC",
   "main": "dist/main/main.js",
   "scripts": {
