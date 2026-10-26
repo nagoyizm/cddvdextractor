@@ -2,6 +2,14 @@
 
 Snapshot al **2026-10-25**. Para arquitectura técnica ver [ARCHITECTURE.md](ARCHITECTURE.md); para reglas de trabajo ver [CLAUDE.md](CLAUDE.md).
 
+## Último cambio (2026-10-25): fix de duración idéntica en pistas de DVD en vivo/musical
+
+**Síntoma reportado:** al extraer un DVD de concierto/musical, todas las pistas salían con la misma duración.
+
+**Causa:** [discScanner.ts](src/main/discScanner.ts) detectaba "capítulos" contando **celdas** del PGC (`nr_of_cells`) en vez de **Programas** (`nr_of_programs` + Program Map, que es la estructura real que define los cortes de capítulo/canción en el estándar DVD-Video — un programa puede abarcar varias celdas). Muchos discos de concierto se autoran como una sola celda de video continua con los cortes de canción definidos solo en el Program Map; al no encontrar más de una celda, el código caía siempre en su último recurso: dividir la duración total en 12 partes matemáticamente iguales.
+
+**Fix aplicado** en `scanDvdVideo()` ([discScanner.ts:226-279](src/main/discScanner.ts:226)): ahora lee `nr_of_programs` y el Program Map (offset `pgc1+0xE6`) para agrupar las celdas reales de cada programa/canción y sumar sus duraciones; si el disco no define Programas, cae a las celdas individuales como respaldo; solo si ninguna de las dos fuentes da resultado usable, cae al reparto sintético en 12 partes iguales (ahora como último recurso real, no como caso común). Verificado con `npx tsc -p tsconfig.main.json --noEmit` (sin errores). **Pendiente**: no se probó aún contra un DVD físico real (no hay unidad óptica disponible en este entorno) — convendría validar con al menos un disco de concierto real antes de confiar plenamente en el fix.
+
 ## Dónde está el código
 
 - Rama: `main` (único branch local).
@@ -27,7 +35,7 @@ Snapshot al **2026-10-25**. Para arquitectura técnica ver [ARCHITECTURE.md](ARC
 ## Huecos y simplificaciones conocidas (ver ARCHITECTURE.md §7 para detalle)
 
 - Sin AccurateRip ni corrección de jitter en la ruta de CD-DA, pese a estar en el objetivo original de `FACTIBILIDAD.md`.
-- Los "capítulos" de un DVD sin celdas múltiples en el IFO son una partición sintética en 12 tiempos iguales, no cortes reales de canciones — el split manual en la UI (`onSplitDvdTracks`) existe precisamente para compensar esto a mano.
+- Los "capítulos" de un DVD sin Programas ni celdas múltiples utilizables en el IFO siguen siendo una partición sintética en 12 tiempos iguales (último recurso, ya no el caso común tras el fix de 2026-10-25) — el split manual en la UI (`onSplitDvdTracks`) sigue existiendo para compensar esto a mano cuando aplica.
 - DVD-Audio (MLP) no tiene demuxer real, solo pistas de ejemplo.
 - Sin selector de stream de audio alternativo en discos DVD multi-pista/multi-idioma (`streamIndex` casi siempre 0).
 - Una sola extracción concurrente (sin cola de trabajos).

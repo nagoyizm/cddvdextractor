@@ -198,7 +198,7 @@ export class DiscScanner {
       const ifoPath = path.join(videoTsPath, ifoName);
       let totalDurationSec = 0;
       let audioFormatStr = 'Dolby AC-3 48kHz Estéreo';
-      const cellDurations: number[] = [];
+      const chapterDurations: number[] = [];
 
       if (fs.existsSync(ifoPath)) {
         try {
@@ -223,8 +223,13 @@ export class DiscScanner {
           const s = ((ifoBuf[pgc1 + 6] >> 4) * 10) + (ifoBuf[pgc1 + 6] & 0x0F);
           totalDurationSec = h * 3600 + m * 60 + s;
 
+          const nrOfPrograms = ifoBuf.readUInt8(pgc1 + 2);
           const nrOfCells = ifoBuf.readUInt8(pgc1 + 3);
-          if (nrOfCells > 1) {
+
+          // Duración de cada celda individual (tabla de Cell Playback Information en el
+          // offset pgc1+0xE8, entradas de 0x18 bytes, duración BCD en el byte +4..+6)
+          const perCellDurations: number[] = [];
+          if (nrOfCells > 0) {
             const cellPlayOffset = ifoBuf.readUInt16BE(pgc1 + 0xE8);
             if (cellPlayOffset > 0) {
               const cellTableStart = pgc1 + cellPlayOffset;
@@ -233,9 +238,43 @@ export class DiscScanner {
                 const chH = ((ifoBuf[cellStart + 4] >> 4) * 10) + (ifoBuf[cellStart + 4] & 0x0F);
                 const chM = ((ifoBuf[cellStart + 5] >> 4) * 10) + (ifoBuf[cellStart + 5] & 0x0F);
                 const chS = ((ifoBuf[cellStart + 6] >> 4) * 10) + (ifoBuf[cellStart + 6] & 0x0F);
-                const dur = chH * 3600 + chM * 60 + chS;
-                if (dur > 0) cellDurations.push(dur);
+                perCellDurations.push(chH * 3600 + chM * 60 + chS);
               }
+            }
+          }
+
+          // Capítulos reales = Programas, no celdas. Cada entrada del Program Map
+          // (offset pgc1+0xE6, 1 byte por programa) indica el número de celda (1-based)
+          // donde arranca ese capítulo/canción; un programa puede abarcar varias celdas.
+          // Muchos discos de concierto/en vivo se autoran como una sola celda de video
+          // continua con los cortes de canción definidos solo en este Program Map, por lo
+          // que "número de celdas" no puede usarse como proxy de "número de canciones".
+          if (nrOfPrograms > 1 && perCellDurations.length === nrOfCells) {
+            const programMapOffset = ifoBuf.readUInt16BE(pgc1 + 0xE6);
+            if (programMapOffset > 0) {
+              const pmStart = pgc1 + programMapOffset;
+              const startCells: number[] = [];
+              for (let p = 0; p < nrOfPrograms; p++) {
+                startCells.push(ifoBuf.readUInt8(pmStart + p));
+              }
+              for (let p = 0; p < nrOfPrograms; p++) {
+                const fromCell = startCells[p];
+                const toCellExclusive = p + 1 < nrOfPrograms ? startCells[p + 1] : nrOfCells + 1;
+                let dur = 0;
+                for (let cellNum = fromCell; cellNum < toCellExclusive; cellNum++) {
+                  dur += perCellDurations[cellNum - 1] || 0;
+                }
+                if (dur > 0) chapterDurations.push(dur);
+              }
+            }
+          }
+
+          // Respaldo: si el disco no define Programas reales, usar las celdas individuales
+          // (sigue siendo mejor que un reparto artificial en partes iguales, aunque pueden
+          // no coincidir exactamente con los cortes de canción).
+          if (chapterDurations.length <= 1 && nrOfCells > 1) {
+            for (const dur of perCellDurations) {
+              if (dur > 0) chapterDurations.push(dur);
             }
           }
         } catch (e) {
@@ -249,10 +288,10 @@ export class DiscScanner {
       }
 
       // Si el DVD tiene capítulos reales en el IFO, usarlos
-      if (cellDurations.length > 1) {
+      if (chapterDurations.length > 1) {
         let accSec = 0;
-        for (let i = 0; i < cellDurations.length; i++) {
-          const dur = cellDurations[i];
+        for (let i = 0; i < chapterDurations.length; i++) {
+          const dur = chapterDurations[i];
           const start = accSec;
           accSec += dur;
           tracks.push({

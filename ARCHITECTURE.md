@@ -50,8 +50,10 @@ Construye `AudioTrack[]` según el tipo de medio:
 - **CD-DA**: lee los archivos `.cda` del volumen (son punteros virtuales de Windows, no audio). De cada uno extrae con lectura binaria directa: número de pista (offset 22, `UInt16LE`), sector de inicio y cantidad de frames (offsets 28/32), de donde derivan `startSector`/`endSector` (en frames CDDA, 75/seg) y la duración. Si no hay `.cda` visibles, genera 12 pistas de muestra (`generateSampleTracks`).
 - **DVD-Video**: lee `VIDEO_TS/`, agrupa los `.VOB` por prefijo de Title Set (`VTS_01`, `VTS_02`, ...) y elige el set de mayor tamaño total (se asume el contenido principal, ej. un concierto). Si existe el `.IFO` del set, lo **parsea en binario** a mano (sin `libdvdread`) para leer:
   - Atributos de audio en offset `0x0140` (códec: AC-3/LPCM/DTS, canales).
-  - La tabla PGC (Program Chain) para la duración total y, si hay más de una celda, la duración de cada celda/capítulo (BCD en offsets fijos desde `pgc1`).
-  - Si no hay celdas múltiples, **divide la duración total en 12 partes iguales** como pistas sintéticas (no son cortes reales de contenido, solo una partición temporal).
+  - La tabla PGC (Program Chain) para la duración total.
+  - **Capítulos reales vía Program Map** (no vía conteo de celdas): lee `nr_of_programs` (`pgc1+0x02`) y el *Program Map* (`pgc1+0xE6`, 1 byte por programa = celda inicial 1-based de ese capítulo/canción), agrupando y sumando las duraciones de celda (`pgc1+0xE8`, entradas de `0x18` bytes) que caen dentro de cada programa. Esto es necesario porque en el estándar DVD-Video un capítulo (programa) puede abarcar varias celdas, o el disco entero puede tener una sola celda de video con los cortes de canción definidos solo en el Program Map — tratar "número de celdas" como "número de canciones" (como se hacía antes) rompe exactamente en ese caso, muy común en DVDs de concierto/en vivo.
+  - Si el disco no define `nr_of_programs > 1`, usa las celdas individuales como respaldo (mejor que nada, aunque no garantiza alinear con canciones).
+  - Solo si ninguna de las dos fuentes anteriores da resultado, **divide la duración total en 12 partes iguales** como pistas sintéticas (último recurso; no son cortes reales de contenido, solo una partición temporal — ver también `CURRENT_WORK.md`).
 - **DVD-Audio**: no hay parser real de `.AOB`/MLP; genera un número de pistas sintéticas proporcional a la cantidad de archivos `.AOB` con metadatos de ejemplo (`MLP Lossless 24-bit 192kHz`).
 - Tras escanear, intenta enriquecer con metadatos:
   - Para CD-DA con sectores válidos: calcula el TOC (offsets + leadout, convención MusicBrainz DiscID) y llama `metadataService.searchByToc()`.
@@ -132,7 +134,7 @@ No hay gestor de estado global (Redux/Zustand) ni pruebas de componentes — tod
 ## 7. Limitaciones conocidas de la arquitectura actual
 
 - **Solo Windows x64**: todo el acceso a hardware (WMI, SPTI, eject) y los binarios empaquetados son específicos de Win32. Portar a macOS/Linux requeriría reemplazar `driveDetector`/`rip_cd_track.ps1` por completo.
-- **Capítulos de DVD sintéticos en el caso común**: si el `.IFO` no reporta celdas múltiples, la app simplemente divide la duración total en 12 partes iguales — no son cortes reales de pistas musicales.
+- **Capítulos de DVD sintéticos como último recurso**: si el disco no define Programas (`nr_of_programs <= 1`) ni celdas múltiples utilizables en el `.IFO`, la app divide la duración total en 12 partes iguales — no son cortes reales de pistas musicales. El caso común de discos de concierto (capítulos vía Program Map) está cubierto desde el fix de 2026-10-25 (ver `CURRENT_WORK.md`), pero discos sin Program Map en absoluto siguen cayendo en este reparto artificial.
 - **Sin AccurateRip ni corrección de jitter** en la ruta de CD-DA, pese a estar documentado como objetivo de calidad audiófila en `FACTIBILIDAD.md`.
 - **Una sola extracción concurrente** (estado de instancia en `TranscoderService`); no hay cola de trabajos.
 - **Sin tests automatizados** (unitarios, de integración o e2e) en el repositorio.
